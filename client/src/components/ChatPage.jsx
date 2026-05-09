@@ -560,14 +560,14 @@ function Chat() {
                 <div className="flex flex-wrap justify-center gap-2">
                   <button
                     onClick={() => {
-                      setInput('What is the Indian Penal Code?');
+                      setInput('What is IPC?');
                       setTimeout(() => {
                         document.querySelector('input[type="text"]')?.focus();
                       }, 100);
                     }}
                     className="rounded-lg border border-border bg-card px-4 py-2 text-xs transition-colors hover:bg-accent hover:text-accent-foreground"
                   >
-                    What is the Indian Penal Code?
+                    What is IPC?
                   </button>
                   <button
                     onClick={() => {
