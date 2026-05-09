@@ -31,8 +31,9 @@ else:
     groq_client = None
 
 # Load models locally
-print("Loading embedding model...")
-embedding_model_local = SentenceTransformer('sentence-transformers/all-mpnet-base-v2')
+embedding_model_name = os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
+print(f"Loading embedding model: {embedding_model_name}...")
+embedding_model_local = SentenceTransformer(embedding_model_name)
 print("Embedding model loaded successfully")
 
 app = FastAPI(title="RAG API", description="Legal Knowledge Base RAG System")
@@ -63,7 +64,7 @@ class QueryResponse(BaseModel):
 
 class RAGSystem:
     def __init__(self):
-        self.embedding_model = os.getenv("EMBEDDING_MODEL", "BAAI/bge-small-en-v1.5")
+        self.embedding_model = embedding_model_name
         self.llm_model = os.getenv("LLM_MODEL", "mistralai/Mistral-7B-Instruct-v0.2")
         self.db_conn = None
         self.connect_db()

@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS documents (
     id BIGSERIAL PRIMARY KEY,
     content TEXT NOT NULL,
     metadata JSONB,
-    embedding vector(768),
+    embedding vector(384),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -21,7 +21,7 @@ ON documents USING gin (metadata);
 
 -- Function to search similar documents
 CREATE OR REPLACE FUNCTION match_documents (
-  query_embedding vector(768),
+  query_embedding vector(384),
   match_threshold FLOAT DEFAULT 0.7,
   match_count INT DEFAULT 5
 )

@@ -10,8 +10,9 @@ from sentence_transformers import SentenceTransformer
 load_dotenv()
 
 # Load local embedding model (same as app.py)
-print("Loading embedding model...")
-embedding_model_local = SentenceTransformer('sentence-transformers/all-mpnet-base-v2')
+embedding_model_name = os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
+print(f"Loading embedding model: {embedding_model_name}...")
+embedding_model_local = SentenceTransformer(embedding_model_name)
 print("✓ Embedding model loaded!")
 
 class PDFProcessor:
