@@ -22,7 +22,6 @@ const SPECIALIZED_BOTS = [
     id: 'cyber',
     name: 'Cyber Law Bot',
     icon: Shield,
-    webhook: 'https://aniruthpvt.app.n8n.cloud/webhook/66329356-5995-4ae4-bddf-9875c2b6ea04',
     description: 'Expert in IT Act 2000, cyber crimes, and data protection',
     color: 'text-blue-600 dark:text-blue-400',
     gradient: 'from-blue-600 to-cyan-600',
@@ -38,7 +37,6 @@ const SPECIALIZED_BOTS = [
     id: 'property',
     name: 'Property Law Bot',
     icon: Home,
-    webhook: 'https://aniruthpvt.app.n8n.cloud/webhook/66329356-5995-4ae4-bddf-9875c2b6ea045',
     description: 'Specialist in real estate, RERA, and property transactions',
     color: 'text-green-600 dark:text-green-400',
     gradient: 'from-green-600 to-emerald-600',
@@ -54,7 +52,6 @@ const SPECIALIZED_BOTS = [
     id: 'family',
     name: 'Family Law Bot',
     icon: Heart,
-    webhook: 'https://aniruthpvt.app.n8n.cloud/webhook/66329356-5995-4ae4-bddf-9875c2b6ea046',
     description: 'Expert in marriage, divorce, custody, and succession',
     color: 'text-pink-600 dark:text-pink-400',
     gradient: 'from-pink-600 to-rose-600',
@@ -70,7 +67,6 @@ const SPECIALIZED_BOTS = [
     id: 'corporate',
     name: 'Corporate Law Bot',
     icon: Briefcase,
-    webhook: 'https://aniruthpvt.app.n8n.cloud/webhook/66329356-5995-4ae4-bddf-9875c2b6ea047',
     description: 'Specialist in Companies Act, contracts, and compliance',
     color: 'text-purple-600 dark:text-purple-400',
     gradient: 'from-purple-600 to-violet-600',
@@ -296,28 +292,31 @@ function SpecializedBots() {
         question: combinedQuestion
       };
 
-      console.log('=== FINAL PAYLOAD TO N8N ===');
+      console.log('=== FINAL PAYLOAD TO GROQ SPECIALIZED BOT ===');
       console.log('Question length:', payload.question.length);
       console.log('Question preview (first 300 chars):', payload.question.substring(0, 300));
       console.log('Full payload:', JSON.stringify(payload, null, 2));
 
-      const response = await axios.post(selectedBot.webhook, payload, {
+      const response = await axios.post('http://localhost:3000/api/specialized-bots/chat', {
+        botId: selectedBot.id,
+        question: payload.question
+      }, {
         headers: { 
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
       });
 
-      console.log('Response from n8n:', response.data);
+      console.log('Response from specialized bot:', response.data);
 
       // Extract content from various response formats
       let content = '';
-      if (response.data.output) {
-        content = response.data.output;
+      if (response.data.response) {
+        content = response.data.response;
       } else if (response.data.answer) {
         content = response.data.answer;
-      } else if (response.data.response) {
-        content = response.data.response;
+      } else if (response.data.output) {
+        content = response.data.output;
       } else if (typeof response.data === 'string') {
         content = response.data;
       } else {
@@ -328,7 +327,7 @@ function SpecializedBots() {
         id: Date.now() + 1,
         type: 'bot',
         content: content,
-        confidence: Math.floor(Math.random() * 6) + 89,
+        confidence: response.data.confidence || Math.floor(Math.random() * 6) + 89,
       };
 
       setMessages((prev) => [...prev, botMessage]);

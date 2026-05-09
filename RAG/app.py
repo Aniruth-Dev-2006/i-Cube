@@ -262,16 +262,20 @@ For legal assistance, you can contact any of the above advocates based on your l
 
 Answer:"""
                     else:
-                        prompt = f"""You are a knowledgeable legal assistant specializing in Indian law. Provide clear, structured responses.
+                        # Different prompts based on whether we have context documents
+                        if context:
+                            # When we have context documents, provide structured concise answer
+                            prompt = f"""You are a knowledgeable legal assistant specializing in Indian law. Provide clear, structured responses.
 
 User Question: {query}
 
 {f"Previous Conversation:\n{conversation_context}" if conversation_context else ""}
 
-{f"Legal Context from Documents:\n{context}" if context else "Note: No specific documents were found in the knowledge base, but provide general legal guidance based on your knowledge of Indian law."}
+Legal Context from Documents:
+{context}
 
 IMPORTANT RULES:
-{"- Use information from the provided context when available" if context else "- Since no specific documents were found, provide general legal guidance based on Indian law"}
+- Use information from the provided context
 - Be specific and accurate about Indian laws (IPC, CrPC, CPC, etc.)
 - Maximum 250 words total
 - Use bullet points for clarity
@@ -315,12 +319,104 @@ FORMAT YOUR RESPONSE:
 
 CRITICAL: Use numbered lists (1., 2., 3.) for all points. Each number must start a new line. Keep responses concise and clear.
 
-Be helpful and informative. If you don't have specific details, provide general guidance that is accurate for Indian law.
+Answer:"""
+                        else:
+                            # When NO documents found, provide comprehensive detailed answer using LLM's full knowledge
+                            prompt = f"""You are an expert legal assistant specializing in Indian law with comprehensive knowledge of:
+- Constitutional Law, IPC, CrPC, CPC, BNS, BNSS
+- Civil, Criminal, Cyber, Consumer, Family, Property, Corporate Law
+- Case laws, precedents, and judicial pronouncements
+- Legal procedures, rights, and remedies
+
+User Question: {query}
+
+{f"Previous Conversation:\n{conversation_context}" if conversation_context else ""}
+
+IMPORTANT: No specific documents were found in the knowledge base. Provide a COMPREHENSIVE and DETAILED answer using your full knowledge of Indian law.
+
+GUIDELINES FOR COMPREHENSIVE RESPONSE:
+1. Provide detailed legal analysis and explanation
+2. Include relevant case laws, precedents, and judicial pronouncements if applicable
+3. Cite specific sections of relevant acts (IPC, CrPC, CPC, BNS, BNSS, etc.)
+4. Explain legal principles, doctrines, and interpretations
+5. Cover multiple aspects: legal issues, arguments, procedures, rights, remedies
+6. Be thorough but well-organized with clear sections
+7. NO WORD LIMIT - provide as much detail as needed to answer comprehensively
+
+STRUCTURE YOUR DETAILED RESPONSE (adapt sections based on query type):
+
+**Overview/Introduction:**
+[Provide context and introduce the legal topic/case/issue]
+
+**Key Facts/Background:**
+[If discussing a case or scenario, explain the relevant facts]
+
+**Legal Issues/Questions:**
+[Identify the main legal issues or questions involved]
+
+**Relevant Legal Provisions:**
+[Cite and explain specific sections, acts, and laws that apply]
+- Section X of [Act]: [Detailed explanation]
+- Section Y of [Act]: [Detailed explanation]
+- Include IPC/BNS, CrPC/BNSS, CPC, or other relevant acts
+
+**Case Laws and Precedents:**
+[If applicable, cite relevant case laws and judicial precedents]
+- [Case Name]: [Brief facts and legal principle established]
+- [Case Name]: [Brief facts and legal principle established]
+
+**Legal Analysis/Interpretation:**
+[Provide detailed analysis of how the law applies, interpretations, doctrines]
+
+**Rights and Remedies:**
+[Explain the rights of parties involved and available legal remedies]
+
+**Procedure and Steps:**
+[If applicable, outline the legal procedure to follow]
+1. [Step with details]
+2. [Step with details]
+
+**Estimated Costs:**
+[Provide typical cost ranges in Indian Rupees]
+- Lawyer Fees: ₹[minimum] - ₹[maximum] (based on complexity)
+- Court Fees: ₹[minimum] - ₹[maximum]
+- Other Costs: ₹[if applicable]
+- Total Estimated Cost: ₹[minimum] - ₹[maximum]
+
+**Expected Timeline:**
+[Provide realistic timeline estimates]
+- Immediate Steps: [timeframe]
+- Court Process: [timeframe]
+- Total Duration: [timeframe]
+
+**Arguments/Considerations:**
+[Present different perspectives or arguments if relevant]
+
+**Practical Implications:**
+[Discuss practical aspects and important considerations]
+1. [Important point 1]
+2. [Important point 2]
+
+**Recommendations:**
+[Provide practical advice or recommendations]
+
+**Conclusion:**
+[Summarize the key points and provide final guidance]
+
+IMPORTANT:
+- Be comprehensive and detailed - there is NO word limit
+- Provide in-depth legal analysis with case laws when relevant
+- Cite specific legal provisions with section numbers
+- Explain legal principles and doctrines thoroughly
+- Structure the response clearly with appropriate sections
+- Be accurate and authoritative in your legal knowledge
 
 Answer:"""
                     
                     print(f"Calling Groq API for query: {query[:50]}...")
                     if groq_client:
+                        # Use higher token limit when no context documents (comprehensive answer needed)
+                        max_tokens = 4000 if not context else 2000
                         chat_completion = groq_client.chat.completions.create(
                             messages=[
                                 {
@@ -330,7 +426,7 @@ Answer:"""
                             ],
                             model="llama-3.3-70b-versatile",
                             temperature=0.7,
-                            max_tokens=2000,
+                            max_tokens=max_tokens,
                         )
                         answer = chat_completion.choices[0].message.content.strip()
                     else:
@@ -470,6 +566,71 @@ Answer:"""
         else:
             return "Hello! I'm your comprehensive legal assistant. I can help you with questions about Indian law including civil, criminal, cyber, consumer, family, property law and more. What would you like to know?"
     
+    def check_content_relevance(self, query: str, documents: List[dict]) -> List[dict]:
+        """Check if documents are actually relevant to the query topic, not just similar embeddings"""
+        import re
+        
+        # Extract main query keywords (filter out common words)
+        common_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 
+                       'of', 'with', 'by', 'from', 'as', 'is', 'was', 'are', 'were', 'be',
+                       'what', 'how', 'when', 'where', 'who', 'which', 'why', 'can', 'should',
+                       'do', 'does', 'did', 'have', 'has', 'had', 'about', 'my', 'me', 'i'}
+        
+        query_words = set(re.findall(r'\b\w+\b', query.lower()))
+        query_keywords = query_words - common_words
+        
+        if not query_keywords:
+            return documents  # Can't filter without keywords
+        
+        print(f"[DEBUG] Query keywords for relevance check: {list(query_keywords)[:5]}...")
+        
+        relevant_docs = []
+        for doc in documents:
+            content_lower = doc['content'].lower()
+            
+            # Check how many query keywords appear in document
+            matching_keywords = sum(1 for keyword in query_keywords if keyword in content_lower)
+            match_ratio = matching_keywords / len(query_keywords) if query_keywords else 0
+            
+            # Document must contain at least 20% of query keywords to be considered relevant
+            # OR have very high similarity (>0.7)
+            if match_ratio >= 0.2 or doc.get('similarity', 0) > 0.7:
+                relevant_docs.append(doc)
+            else:
+                print(f"[DEBUG] Filtered out document (match ratio: {match_ratio:.2f}): {content_lower[:80]}...")
+        
+        return relevant_docs
+    
+    def is_case_law_query(self, query: str) -> bool:
+        """Detect if query is asking about a specific case (e.g., 'X vs Y', 'X v. Y')"""  
+        import re
+        # Pattern for case names: Word(s) vs/v./v Word(s)
+        case_patterns = [
+            r'\b\w+\s+vs\.?\s+\w+',  # X vs Y or X vs. Y
+            r'\b\w+\s+v\.\s+\w+',     # X v. Y
+            r'\b\w+\s+versus\s+\w+'   # X versus Y
+        ]
+        for pattern in case_patterns:
+            if re.search(pattern, query, re.IGNORECASE):
+                return True
+        return False
+    
+    def extract_case_name(self, query: str) -> str:
+        """Extract case name from query (e.g., 'Potty vs United India')"""  
+        import re
+        # Try to find case name pattern
+        patterns = [
+            r'(\w+(?:\s+\w+)?)\s+vs\.?\s+(\w+(?:\s+\w+)?)',
+            r'(\w+(?:\s+\w+)?)\s+v\.\s+(\w+(?:\s+\w+)?)',
+            r'(\w+(?:\s+\w+)?)\s+versus\s+(\w+(?:\s+\w+)?)'
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, query, re.IGNORECASE)
+            if match:
+                # Return full case name "Party1 vs Party2"
+                return f"{match.group(1)} vs {match.group(2)}"
+        return None
+    
     def is_lawyer_query(self, query: str) -> tuple[bool, str]:
         """Detect if query is asking for lawyer/advocate information and extract specialization"""
         query_lower = query.lower()
@@ -588,7 +749,7 @@ Answer:"""
                     traceback.print_exc()
             
             # Apply similarity threshold - only use documents if they're actually relevant
-            SIMILARITY_THRESHOLD = 0.35  # Minimum similarity score to consider document relevant
+            SIMILARITY_THRESHOLD = 0.5  # Minimum similarity score to consider document relevant (increased for better filtering)
             relevant_docs = []
             
             if similar_docs:
@@ -598,16 +759,42 @@ Answer:"""
                 if relevant_docs:
                     print(f"[DEBUG] {len(relevant_docs)}/{len(similar_docs)} documents passed similarity threshold ({SIMILARITY_THRESHOLD})")
                     print(f"[DEBUG] Top similarity: {relevant_docs[0]['similarity']:.4f}")
+                    
+                    # CRITICAL: Check content relevance - filter out documents that don't actually match query topic
+                    content_relevant_docs = self.check_content_relevance(query_text, relevant_docs)
+                    
+                    if len(content_relevant_docs) < len(relevant_docs):
+                        print(f"[INFO] Content relevance check: {len(content_relevant_docs)}/{len(relevant_docs)} documents are actually relevant")
+                        relevant_docs = content_relevant_docs
+                    
+                    # Additional relevance check for case law queries
+                    if relevant_docs and self.is_case_law_query(query_text):
+                        case_name = self.extract_case_name(query_text)
+                        if case_name:
+                            # Check if any document actually contains the case name
+                            case_relevant_docs = [doc for doc in relevant_docs 
+                                                 if case_name.lower() in doc['content'].lower()]
+                            if case_relevant_docs:
+                                print(f"[INFO] Found {len(case_relevant_docs)} documents about case: {case_name}")
+                                relevant_docs = case_relevant_docs
+                            else:
+                                print(f"[INFO] No documents found about specific case '{case_name}'. Using comprehensive LLM mode.")
+                                relevant_docs = []  # Clear docs to trigger comprehensive answer
+                    
+                    # Final check - if no relevant docs after all filters, use comprehensive mode
+                    if not relevant_docs:
+                        print(f"[INFO] All documents filtered out as irrelevant. Using comprehensive LLM mode.")
                 else:
                     print(f"[DEBUG] No documents passed similarity threshold ({SIMILARITY_THRESHOLD})")
                     print(f"[DEBUG] Top similarity was: {similar_docs[0]['similarity']:.4f}")
             
             # Generate answer - use relevant docs or allow LLM to respond from its knowledge
             if relevant_docs:
+                print(f"[INFO] Generating answer using {len(relevant_docs)} relevant documents")
                 answer = self.generate_answer(query_text, relevant_docs, conversation_history)
             else:
-                # No relevant documents found, allow LLM to answer from its knowledge
-                print("[INFO] No relevant documents found. Using LLM's general knowledge of Indian law...")
+                # No relevant documents found, allow LLM to answer from its comprehensive knowledge
+                print("[INFO] No relevant documents found. Generating COMPREHENSIVE answer using LLM's full legal knowledge...")
                 answer = self.generate_answer(query_text, [], conversation_history)
             
             # Prepare sources only if relevant documents were found

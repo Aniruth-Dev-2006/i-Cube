@@ -284,14 +284,6 @@ function Chat({ onClose, selectedBot = null }) {
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
 
-  // N8N webhook endpoints for specialized bots
-  const botWebhooks = {
-    cyber: 'https://aniruthpvt.app.n8n.cloud/webhook/66329356-5995-4ae4-bddf-9875c2b6ea04',
-    property: 'https://aniruthpvt.app.n8n.cloud/webhook/66329356-5995-4ae4-bddf-9875c2b6ea045',
-    family: 'https://aniruthpvt.app.n8n.cloud/webhook/66329356-5995-4ae4-bddf-9875c2b6ea046',
-    corporate: 'https://aniruthpvt.app.n8n.cloud/webhook/66329356-5995-4ae4-bddf-9875c2b6ea047'
-  };
-
   const botNames = {
     cyber: 'Cyber Law Specialist',
     property: 'Property Law Specialist',
@@ -555,20 +547,18 @@ function Chat({ onClose, selectedBot = null }) {
         fullQuery = `Based on the following document context, please answer the question.\n\n--- DOCUMENT CONTEXT ---\n${extractedText.substring(0, 4000)}\n--- END CONTEXT ---\n\nQuestion: ${userMessage.content}\n\nPlease provide a structured response with clear sections and bullet points where appropriate.`;
       }
 
-      // If a specialized bot is selected, use n8n webhook
-      if (selectedBot && botWebhooks[selectedBot]) {
-        const webhookUrl = botWebhooks[selectedBot];
-        
-        const response = await axios.post(webhookUrl, {
+      // If a specialized bot is selected, use Groq specialized bot endpoint
+      if (selectedBot && botNames[selectedBot]) {
+        const response = await axios.post('http://localhost:3000/api/specialized-bots/chat', {
+          botId: selectedBot,
           question: fullQuery
         });
 
-        // Generate fake confidence score between 80-95%
-        const confidenceScore = (Math.random() * 0.15 + 0.80).toFixed(2);
+        const confidenceScore = response.data?.confidence_score || (Math.random() * 0.15 + 0.80).toFixed(2);
 
-        let responseContent = response.data?.output || response.data?.response || response.data?.answer || 'No response received';
+        let responseContent = response.data?.response || response.data?.answer || response.data?.output || 'No response received';
         
-        console.log('Webhook response:', responseContent);
+        console.log('Specialized bot response:', responseContent);
         
         // Ensure response is formatted - keep as string to let StructuredMessage handle it
         // Don't format here as it might return null/undefined
