@@ -81,6 +81,7 @@ const SPECIALIZED_BOTS = [
 ];
 
 function SpecializedBots() {
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
   const [user, setUser] = useState(null);
   const [selectedBot, setSelectedBot] = useState(SPECIALIZED_BOTS[0]);
   const [question, setQuestion] = useState('');
@@ -297,7 +298,7 @@ function SpecializedBots() {
       console.log('Question preview (first 300 chars):', payload.question.substring(0, 300));
       console.log('Full payload:', JSON.stringify(payload, null, 2));
 
-      const response = await axios.post('http://localhost:3000/api/specialized-bots/chat', {
+      const response = await axios.post(`${API_URL}/api/specialized-bots/chat`, {
         botId: selectedBot.id,
         question: payload.question
       }, {

@@ -18,6 +18,7 @@ if (typeof window !== 'undefined') {
 }
 
 function Chat() {
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
   const [user, setUser] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -293,7 +294,7 @@ function Chat() {
       console.log('Sending to RAG - Query length:', payload.query.length);
       console.log('Preview:', payload.query.substring(0, 300));
 
-      const response = await axios.post('http://localhost:3000/api/rag/query', payload, {
+      const response = await axios.post(`${API_URL}/api/rag/query`, payload, {
         headers: { 'Content-Type': 'application/json' },
       });
 
@@ -325,7 +326,7 @@ function Chat() {
       let errorMsg = 'Sorry, something went wrong. Please try again.';
       
       if (error.code === 'ERR_NETWORK' || error.message.includes('Network Error')) {
-        errorMsg = 'Cannot connect to the server. Please make sure the backend server is running on http://localhost:3000';
+        errorMsg = `Cannot connect to the server. Please make sure the backend server is running on ${API_URL}`;
       } else if (error.response?.data?.message) {
         errorMsg = `Error: ${error.response.data.message}`;
       }

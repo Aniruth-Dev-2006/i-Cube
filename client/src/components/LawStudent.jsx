@@ -6,6 +6,8 @@ import Header from './Header';
 import Settings from './Settings';
 import { BookOpen, FileText, Clock, TrendingUp, MessageSquare, BookMarked, Target, Lightbulb, Award, Calendar, Scale, Gavel, Send, Loader2, Sparkles, X, Edit2, Save, Pencil, Trash2, Plus } from 'lucide-react';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
 function LawStudent() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -116,7 +118,7 @@ function LawStudent() {
       try {
         // Test backend connection first
         try {
-          const testResponse = await axios.get('http://localhost:3000/api/law-student/test');
+          const testResponse = await axios.get(`${API_URL}/api/law-student/test`);
           console.log('🌐 Backend connection test:', testResponse.data);
         } catch (testError) {
           console.error('❌ Backend not reachable:', testError.message);
@@ -159,7 +161,7 @@ function LawStudent() {
   const loadUserProgress = async (userId) => {
     try {
       console.log('🔑 Loading progress for user ID:', userId);
-      const response = await axios.get(`http://localhost:3000/api/law-student/progress/${userId}`);
+      const response = await axios.get(`${API_URL}/api/law-student/progress/${userId}`);
       console.log('📥 Loaded data from backend:', response.data);
       console.log('📦 Full loaded data:', JSON.stringify(response.data, null, 2));
       
@@ -258,7 +260,7 @@ function LawStudent() {
       console.log('🔍 examNotes array:', examNotes);
       console.log('🔍 chatMessages array:', chatMessages.slice(0, 3)); // Show first 3 messages
 
-      const response = await axios.post('http://localhost:3000/api/law-student/progress', dataToSave);
+      const response = await axios.post(`${API_URL}/api/law-student/progress`, dataToSave);
       console.log('✅ Progress saved successfully for user:', user._id);
       console.log('📨 Server response:', response.data);
     } catch (error) {
@@ -346,7 +348,7 @@ function LawStudent() {
     setChatLoading(true);
 
     try {
-      const response = await axios.post('http://localhost:3000/api/law-student/chat', {
+      const response = await axios.post(`${API_URL}/api/law-student/chat`, {
         message: userMessage
       });
 
@@ -387,7 +389,7 @@ function LawStudent() {
       setChatLoading(true);
 
       try {
-        const response = await axios.post('http://localhost:3000/api/law-student/chat', {
+        const response = await axios.post(`${API_URL}/api/law-student/chat`, {
           message: userMessage
         });
 
@@ -420,7 +422,7 @@ function LawStudent() {
     setSelectedModule(topic);
 
     try {
-      const response = await axios.post('http://localhost:3000/api/law-student/generate-notes', {
+      const response = await axios.post(`${API_URL}/api/law-student/generate-notes`, {
         topic: topic
       });
 

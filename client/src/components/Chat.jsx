@@ -274,6 +274,7 @@ function StructuredMessage({ sections, confidence_score }) {
 }
 
 function Chat({ onClose, selectedBot = null }) {
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -549,7 +550,7 @@ function Chat({ onClose, selectedBot = null }) {
 
       // If a specialized bot is selected, use Groq specialized bot endpoint
       if (selectedBot && botNames[selectedBot]) {
-        const response = await axios.post('http://localhost:3000/api/specialized-bots/chat', {
+        const response = await axios.post(`${API_URL}/api/specialized-bots/chat`, {
           botId: selectedBot,
           question: fullQuery
         });
@@ -578,7 +579,7 @@ function Chat({ onClose, selectedBot = null }) {
           content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content)
         }));
 
-        const response = await axios.post('http://localhost:3000/rag/query', {
+        const response = await axios.post(`${API_URL}/rag/query`, {
           query: fullQuery,
           conversation_history: conversationHistory,
           max_results: 5

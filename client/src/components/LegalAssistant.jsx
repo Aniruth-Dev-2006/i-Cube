@@ -13,6 +13,8 @@ import {
 } from 'lucide-react';
 import './LegalAssistant.css';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
 // Configure PDF.js worker
 if (typeof window !== 'undefined') {
   pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
@@ -63,7 +65,7 @@ function LegalAssistant() {
 
   const loadUserData = async (userId) => {
     try {
-      const response = await axios.get(`http://localhost:3000/api/legal-assistant/data/${userId}`);
+      const response = await axios.get(`${API_URL}/api/legal-assistant/data/${userId}`);
       if (response.data.success) {
         // Don't load chat history on reload - start fresh each time
         // setChatMessages(response.data.data.chatHistory || []);
@@ -77,7 +79,7 @@ function LegalAssistant() {
   const saveUserData = async () => {
     if (!user) return;
     try {
-      await axios.post('http://localhost:3000/api/legal-assistant/data', {
+      await axios.post(`${API_URL}/api/legal-assistant/data`, {
         userId: user.id || user._id,
         chatHistory: chatMessages,
         quickNotes: quickNotes
@@ -198,7 +200,7 @@ function LegalAssistant() {
     setChatLoading(true);
 
     try {
-      const response = await axios.post('http://localhost:3000/api/legal-assistant/chat', {
+      const response = await axios.post(`${API_URL}/api/legal-assistant/chat`, {
         message: combinedMessage, // Send combined message with PDF content
         chatHistory: chatMessages.slice(-10)
       });

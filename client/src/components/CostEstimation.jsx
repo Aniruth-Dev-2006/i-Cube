@@ -6,6 +6,8 @@ import Header from './Header';
 import Settings from './Settings';
 import { authService } from '../services/authService';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
 // Function to render markdown text with bold formatting
 function renderMarkdownText(text) {
   if (!text) return text;
@@ -64,7 +66,7 @@ function CostEstimation() {
     setResult(null);
 
     try {
-      const response = await axios.post('http://localhost:3000/api/cost-estimate', formData);
+      const response = await axios.post(`${API_URL}/api/cost-estimate`, formData);
       setResult(response.data);
     } catch (err) {
       console.error('Cost estimation error:', err);

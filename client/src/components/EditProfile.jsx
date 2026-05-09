@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { authService } from '../services/authService';
 import './EditProfile.css';
 
-const API_URL = 'http://localhost:3000';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 function EditProfile({ user, onUpdate, onCancel }) {
   const [formData, setFormData] = useState({
