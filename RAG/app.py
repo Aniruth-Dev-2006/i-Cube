@@ -7,7 +7,6 @@ from pydantic import BaseModel
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from dotenv import load_dotenv
-from sentence_transformers import SentenceTransformer
 import google.generativeai as genai
 from groq import Groq
 
@@ -30,11 +29,9 @@ else:
     print("Warning: GROQ_API_KEY not found")
     groq_client = None
 
-# Load models locally
-embedding_model_name = os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
-print(f"Loading embedding model: {embedding_model_name}...")
-embedding_model_local = SentenceTransformer(embedding_model_name)
-print("Embedding model loaded successfully")
+# Configure embedding model (Gemini embeddings)
+embedding_model_name = os.getenv("EMBEDDING_MODEL", "text-embedding-004")
+KEYWORD_ONLY = os.getenv("KEYWORD_ONLY", "true").lower() == "true"
 
 app = FastAPI(title="RAG API", description="Legal Knowledge Base RAG System")
 
@@ -84,13 +81,55 @@ class RAGSystem:
             raise
     
     def generate_embedding(self, text: str):
-        """Generate embedding using local sentence-transformers"""
+        """Generate embedding using Gemini embeddings API"""
         try:
-            # Generate embedding locally - much faster and more reliable!
-            embedding = embedding_model_local.encode(text)
-            return embedding.tolist()
+            if KEYWORD_ONLY:
+                raise Exception("Embeddings disabled: KEYWORD_ONLY mode is enabled")
+            if not GEMINI_API_KEY:
+                raise Exception("GEMINI_API_KEY not configured")
+
+            result = genai.embed_content(
+                model=self.embedding_model,
+                content=text,
+                task_type="retrieval_query"
+            )
+            return result.get("embedding")
         except Exception as e:
             print(f"Embedding generation error: {str(e)}")
+            raise
+
+    def search_keyword_documents(self, query_text: str, max_results=10):
+        """Keyword-only search using simple term matching."""
+        try:
+            cursor = self.db_conn.cursor(cursor_factory=RealDictCursor)
+            terms = [t for t in query_text.lower().split() if len(t) >= 3]
+            terms = terms[:8]
+
+            if not terms:
+                return []
+
+            conditions = " OR ".join(["LOWER(content) LIKE %s" for _ in terms])
+            params = [f"%{t}%" for t in terms]
+
+            cursor.execute(
+                f"""
+                SELECT
+                    id,
+                    content,
+                    metadata,
+                    0.5 AS similarity
+                FROM documents
+                WHERE {conditions}
+                LIMIT %s
+                """,
+                (*params, max_results)
+            )
+
+            results = cursor.fetchall()
+            cursor.close()
+            return results
+        except Exception as e:
+            print(f"Keyword search error: {str(e)}")
             raise
     
     def search_similar_documents(self, query_embedding, max_results=10, query_text=None):
@@ -702,20 +741,23 @@ Answer:"""
                 # For general legal queries, also increase max_results to get more context
                 max_results = max(max_results, 15)
             
-            # Generate embedding based on query type
-            if is_lawyer and specialization:
-                # Reformulate query to match "Advocate [Name] [Specialization] Law" pattern
-                reformulated_query = f"Advocate {specialization.title()} Law"
-                print(f"[DEBUG] Lawyer query detected. Reformulated: '{reformulated_query}'")
-                query_embedding = self.generate_embedding(reformulated_query)
-            elif is_lawyer:
-                query_embedding = self.generate_embedding("Advocate Law lawyer")
+            if KEYWORD_ONLY:
+                similar_docs = self.search_keyword_documents(query_text, max_results)
             else:
-                # Generate query embedding normally
-                query_embedding = self.generate_embedding(query_text)
-            
-            # Search for similar documents - pass query_text for hybrid search
-            similar_docs = self.search_similar_documents(query_embedding, max_results, query_text=query_text)
+                # Generate embedding based on query type
+                if is_lawyer and specialization:
+                    # Reformulate query to match "Advocate [Name] [Specialization] Law" pattern
+                    reformulated_query = f"Advocate {specialization.title()} Law"
+                    print(f"[DEBUG] Lawyer query detected. Reformulated: '{reformulated_query}'")
+                    query_embedding = self.generate_embedding(reformulated_query)
+                elif is_lawyer:
+                    query_embedding = self.generate_embedding("Advocate Law lawyer")
+                else:
+                    # Generate query embedding normally
+                    query_embedding = self.generate_embedding(query_text)
+
+                # Search for similar documents - pass query_text for hybrid search
+                similar_docs = self.search_similar_documents(query_embedding, max_results, query_text=query_text)
             print(f"[DEBUG] Search returned {len(similar_docs) if similar_docs else 0} documents")
             
             # For lawyer queries with specialization, ALWAYS use keyword search to ensure we get the right specialty

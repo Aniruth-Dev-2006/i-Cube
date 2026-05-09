@@ -5,19 +5,22 @@ from pypdf import PdfReader
 import psycopg2
 from psycopg2.extras import execute_values
 import time
-from sentence_transformers import SentenceTransformer
+import google.generativeai as genai
 
 load_dotenv()
 
-# Load local embedding model (same as app.py)
-embedding_model_name = os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
-print(f"Loading embedding model: {embedding_model_name}...")
-embedding_model_local = SentenceTransformer(embedding_model_name)
-print("✓ Embedding model loaded!")
+# Configure Gemini embeddings
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
+else:
+    raise RuntimeError("GEMINI_API_KEY not configured")
+
+embedding_model_name = os.getenv("EMBEDDING_MODEL", "text-embedding-004")
 
 class PDFProcessor:
     def __init__(self):
-        self.embedding_model = embedding_model_local
+        self.embedding_model = embedding_model_name
         self.db_conn = psycopg2.connect(
             host=os.getenv("DB_HOST"),
             port=os.getenv("DB_PORT"),
@@ -76,10 +79,14 @@ class PDFProcessor:
         return chunks
     
     def generate_embedding(self, text):
-        """Generate embedding using local sentence-transformers model"""
+        """Generate embedding using Gemini embeddings API"""
         try:
-            embedding = self.embedding_model.encode(text)
-            return embedding.tolist()
+            result = genai.embed_content(
+                model=self.embedding_model,
+                content=text,
+                task_type="retrieval_document"
+            )
+            return result.get("embedding")
         except Exception as e:
             print(f"Error generating embedding: {str(e)}")
             return None
