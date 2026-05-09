@@ -34,6 +34,7 @@ const allowedOrigins = [
   'http://localhost:5173'
 ].filter(Boolean);
 
+app.set('trust proxy', 1);
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin) {
@@ -65,6 +66,7 @@ app.use(session({
   saveUninitialized: false,
   cookie: {
     secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
     httpOnly: true,
     maxAge: 1000 * 60 * 60 * 24 // 24 hours
   }
