@@ -70,17 +70,17 @@ function Chat() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const saveCurrentChat = async (updatedMessages) => {
-    if (!currentChatId || updatedMessages.length === 0) return;
+  const saveCurrentChat = async (chatId, updatedMessages) => {
+    if (!chatId || updatedMessages.length === 0) return;
     
     const chatTitle = updatedMessages[0]?.content.substring(0, 30) + (updatedMessages[0]?.content.length > 30 ? '...' : '');
     
-    // Check if currentChatId is an optimistic temporary ID (a number/timestamp string)
+    // Check if chatId is an optimistic temporary ID (a number/timestamp string)
     // If it's saved in DB, it will be a 24-char hex string (MongoDB ObjectId)
-    const isTempId = currentChatId.length < 24;
+    const isTempId = chatId.length < 24;
     
     const chatData = {
-      _id: isTempId ? undefined : currentChatId,
+      _id: isTempId ? undefined : chatId,
       title: chatTitle,
       messages: updatedMessages
     };
@@ -102,7 +102,7 @@ function Chat() {
         };
         
         // If it was temp, we might not find it in the prev state by the new ID, so we check for temp ID or new ID
-        const existingIndex = prev.findIndex(chat => chat.id === currentChatId || chat.id === savedChat._id);
+        const existingIndex = prev.findIndex(chat => chat.id === chatId || chat.id === savedChat._id);
         
         if (existingIndex >= 0) {
           const updated = [...prev];
@@ -287,9 +287,10 @@ function Chat() {
     if (!input.trim() && uploadedFiles.length === 0) return;
 
     // Create new chat if this is the first message
-    if (!currentChatId) {
-      const newChatId = Date.now().toString();
-      setCurrentChatId(newChatId);
+    let activeChatId = currentChatId;
+    if (!activeChatId) {
+      activeChatId = Date.now().toString();
+      setCurrentChatId(activeChatId);
     }
 
     // Build combined question with extracted text
@@ -340,8 +341,8 @@ function Chat() {
 
       setMessages((prev) => [...prev, botMessage]);
       
-      // Save or update chat in history
-      saveCurrentChat([...messages, userMessage, botMessage]);
+      // Save or update chat in history using the activeChatId
+      saveCurrentChat(activeChatId, [...messages, userMessage, botMessage]);
       
       // Reset file input to allow new uploads
       if (fileInputRef.current) {
