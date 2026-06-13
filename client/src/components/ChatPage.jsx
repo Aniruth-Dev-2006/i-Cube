@@ -6,6 +6,7 @@ import { Send, Paperclip, X, Download, FileText, Check, Upload, Loader2, Scale, 
 import Header from './Header';
 import Settings from './Settings';
 import { authService } from '../services/authService';
+import { chatService } from '../services/chatService';
 import jsPDF from 'jspdf';
 import * as pdfjsLib from 'pdfjs-dist';
 
@@ -35,60 +36,85 @@ function Chat() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchUser = async () => {
+    const fetchUserAndChats = async () => {
       try {
         const response = await authService.getCurrentUser();
         setUser(response.user);
+        
+        // Load chat history from DB
+        try {
+          const chats = await chatService.getChats();
+          // Map DB models to local state format
+          const formattedChats = chats.map(chat => ({
+            id: chat._id,
+            title: chat.title,
+            messages: chat.messages,
+            timestamp: new Date(chat.updatedAt).getTime()
+          }));
+          setChatHistory(formattedChats);
+        } catch (err) {
+          console.error('Failed to load chat history', err);
+        }
       } catch (error) {
         navigate('/login');
       }
     };
-    fetchUser();
-    
-    // Load chat history from localStorage
-    const savedHistory = localStorage.getItem('chatHistory');
-    if (savedHistory) {
-      setChatHistory(JSON.parse(savedHistory));
-    }
+    fetchUserAndChats();
   }, [navigate]);
 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
-  
-  useEffect(() => {
-    // Save chat history to localStorage
-    if (chatHistory.length > 0) {
-      localStorage.setItem('chatHistory', JSON.stringify(chatHistory));
-    }
-  }, [chatHistory]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const saveCurrentChat = (updatedMessages) => {
+  const saveCurrentChat = async (updatedMessages) => {
     if (!currentChatId || updatedMessages.length === 0) return;
     
     const chatTitle = updatedMessages[0]?.content.substring(0, 30) + (updatedMessages[0]?.content.length > 30 ? '...' : '');
     
-    setChatHistory((prev) => {
-      const existingIndex = prev.findIndex(chat => chat.id === currentChatId);
-      const chatData = {
-        id: currentChatId,
-        title: chatTitle,
-        messages: updatedMessages,
-        timestamp: Date.now()
-      };
+    // Check if currentChatId is an optimistic temporary ID (a number/timestamp string)
+    // If it's saved in DB, it will be a 24-char hex string (MongoDB ObjectId)
+    const isTempId = currentChatId.length < 24;
+    
+    const chatData = {
+      _id: isTempId ? undefined : currentChatId,
+      title: chatTitle,
+      messages: updatedMessages
+    };
+
+    try {
+      const savedChat = await chatService.saveChat(chatData);
       
-      if (existingIndex >= 0) {
-        const updated = [...prev];
-        updated[existingIndex] = chatData;
-        return updated;
-      } else {
-        return [chatData, ...prev];
+      // If it was a temporary ID, update it with the real DB ID
+      if (isTempId) {
+        setCurrentChatId(savedChat._id);
       }
-    });
+
+      setChatHistory((prev) => {
+        const formattedSavedChat = {
+          id: savedChat._id,
+          title: savedChat.title,
+          messages: savedChat.messages,
+          timestamp: new Date(savedChat.updatedAt).getTime()
+        };
+        
+        // If it was temp, we might not find it in the prev state by the new ID, so we check for temp ID or new ID
+        const existingIndex = prev.findIndex(chat => chat.id === currentChatId || chat.id === savedChat._id);
+        
+        if (existingIndex >= 0) {
+          const updated = [...prev];
+          updated[existingIndex] = formattedSavedChat;
+          return updated;
+        } else {
+          return [formattedSavedChat, ...prev];
+        }
+      });
+    } catch (err) {
+      console.error('Failed to save chat', err);
+    }
   };
 
   const createNewChat = () => {
@@ -112,10 +138,15 @@ function Chat() {
     }
   };
 
-  const deleteChat = (chatId) => {
-    setChatHistory((prev) => prev.filter(chat => chat.id !== chatId));
-    if (currentChatId === chatId) {
-      createNewChat();
+  const deleteChat = async (chatId) => {
+    try {
+      await chatService.deleteChat(chatId);
+      setChatHistory((prev) => prev.filter(chat => chat.id !== chatId));
+      if (currentChatId === chatId) {
+        createNewChat();
+      }
+    } catch (err) {
+      console.error('Failed to delete chat', err);
     }
   };
 

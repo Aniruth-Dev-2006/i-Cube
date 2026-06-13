@@ -14,6 +14,7 @@ const complaintRoutes = require('./routes/complaint');
 const lawStudentRoutes = require('./routes/lawStudent');
 const legalAssistantRoutes = require('./routes/legalAssistant');
 const specializedBotsRoutes = require('./routes/specializedBots');
+const chatsRoutes = require('./routes/chats');
 
 // Create uploads directory if it doesn't exist
 const uploadsDir = path.join(__dirname, 'uploads/profiles');
@@ -70,6 +71,7 @@ app.use('/api/complaint', complaintRoutes);
 app.use('/api/law-student', lawStudentRoutes);
 app.use('/api/legal-assistant', legalAssistantRoutes);
 app.use('/api/specialized-bots', specializedBotsRoutes);
+app.use('/api/chats', chatsRoutes);
 
 app.get("/", function(req, res) {
   res.send("Legal Chatbot API Server");
