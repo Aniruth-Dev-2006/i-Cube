@@ -60,13 +60,15 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Session configuration
+const isProduction = process.env.NODE_ENV === 'production' || process.env.RENDER === 'true' || process.env.RENDER === '1' || process.env.IS_RENDER === 'true' || (process.env.CLIENT_URL && !process.env.CLIENT_URL.includes('localhost'));
+
 app.use(session({
   secret: process.env.SESSION_SECRET || 'your-secret-key',
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax',
     httpOnly: true,
     maxAge: 1000 * 60 * 60 * 24 // 24 hours
   }
