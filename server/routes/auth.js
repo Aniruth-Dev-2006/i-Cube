@@ -33,14 +33,19 @@ router.post('/signup', async (req, res) => {
         return res.status(500).json({ message: 'Error logging in after signup' });
       }
       
-      res.status(201).json({
-        message: 'User created successfully',
-        user: {
-          id: user._id,
-          email: user.email,
-          name: user.name,
-          picture: user.picture
+      req.session.save((err) => {
+        if (err) {
+          return res.status(500).json({ message: 'Session error' });
         }
+        res.status(201).json({
+          message: 'User created successfully',
+          user: {
+            id: user._id,
+            email: user.email,
+            name: user.name,
+            picture: user.picture
+          }
+        });
       });
     });
   } catch (error) {
@@ -65,14 +70,19 @@ router.post('/login', (req, res, next) => {
         return res.status(500).json({ message: 'Error logging in' });
       }
       
-      res.json({
-        message: 'Login successful',
-        user: {
-          id: user._id,
-          email: user.email,
-          name: user.name,
-          picture: user.picture
+      req.session.save((err) => {
+        if (err) {
+          return res.status(500).json({ message: 'Session error' });
         }
+        res.json({
+          message: 'Login successful',
+          user: {
+            id: user._id,
+            email: user.email,
+            name: user.name,
+            picture: user.picture
+          }
+        });
       });
     });
   })(req, res, next);

@@ -16,7 +16,8 @@ function Dashboard() {
         const response = await authService.getCurrentUser();
         setUser(response.user);
       } catch (error) {
-        navigate('/login');
+        // Do not navigate to login automatically
+        console.log("User not logged in");
       } finally {
         setLoading(false);
       }
@@ -24,6 +25,14 @@ function Dashboard() {
 
     fetchUser();
   }, [navigate]);
+
+  const handleNavigation = (path) => {
+    if (user) {
+      navigate(path);
+    } else {
+      navigate('/login');
+    }
+  };
 
   if (loading) {
     return (
@@ -153,7 +162,7 @@ function Dashboard() {
               <h2 className="mb-4 text-lg font-semibold text-foreground">Core Services</h2>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <button
-                  onClick={() => navigate('/chat')}
+                  onClick={() => handleNavigation('/chat')}
                   className="group relative overflow-hidden rounded-xl border border-blue-500/20 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 p-6 text-left shadow-sm transition-all hover:scale-[1.02] hover:shadow-md hover:border-blue-500/30"
                 >
                   <div className="absolute right-4 top-4 opacity-10">
@@ -167,7 +176,7 @@ function Dashboard() {
                 </button>
 
                 <button
-                  onClick={() => navigate('/specialized-bots')}
+                  onClick={() => handleNavigation('/specialized-bots')}
                   className="group relative overflow-hidden rounded-xl border border-purple-500/20 bg-gradient-to-br from-purple-500/10 to-violet-500/10 p-6 text-left shadow-sm transition-all hover:scale-[1.02] hover:shadow-md hover:border-purple-500/30"
                 >
                   <div className="absolute right-4 top-4 opacity-10">
@@ -181,7 +190,7 @@ function Dashboard() {
                 </button>
 
                 <button
-                  onClick={() => navigate('/search-lawyers')}
+                  onClick={() => handleNavigation('/search-lawyers')}
                   className="group relative overflow-hidden rounded-xl border border-indigo-500/20 bg-gradient-to-br from-indigo-500/10 to-sky-500/10 p-6 text-left shadow-sm transition-all hover:scale-[1.02] hover:shadow-md hover:border-indigo-500/30"
                 >
                   <div className="absolute right-4 top-4 opacity-10">
@@ -195,7 +204,7 @@ function Dashboard() {
                 </button>
 
                 <button
-                  onClick={() => navigate('/cost-estimation')}
+                  onClick={() => handleNavigation('/cost-estimation')}
                   className="group relative overflow-hidden rounded-xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 to-green-500/10 p-6 text-left shadow-sm transition-all hover:scale-[1.02] hover:shadow-md hover:border-emerald-500/30"
                 >
                   <div className="absolute right-4 top-4 opacity-10">
@@ -209,7 +218,7 @@ function Dashboard() {
                 </button>
 
                 <button
-                  onClick={() => navigate('/law-student')}
+                  onClick={() => handleNavigation('/law-student')}
                   className="group relative overflow-hidden rounded-xl border border-blue-500/20 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 p-6 text-left shadow-sm transition-all hover:scale-[1.02] hover:shadow-md hover:border-blue-500/30"
                 >
                   <div className="absolute right-4 top-4 opacity-10">
@@ -223,7 +232,7 @@ function Dashboard() {
                 </button>
 
                 <button
-                  onClick={() => navigate('/lawyer-tools')}
+                  onClick={() => handleNavigation('/lawyer-tools')}
                   className="group relative overflow-hidden rounded-xl border border-purple-500/20 bg-gradient-to-br from-purple-500/10 to-violet-500/10 p-6 text-left shadow-sm transition-all hover:scale-[1.02] hover:shadow-md hover:border-purple-500/30"
                 >
                   <div className="absolute right-4 top-4 opacity-10">
@@ -243,7 +252,7 @@ function Dashboard() {
               <h2 className="mb-4 text-lg font-semibold text-foreground">Additional Services</h2>
               <div className="grid gap-4 sm:grid-cols-2">
                 <button
-                  onClick={() => navigate('/cyber-complaint')}
+                  onClick={() => handleNavigation('/cyber-complaint')}
                   className="group rounded-xl border border-fuchsia-500/30 bg-gradient-to-r from-fuchsia-600/15 to-fuchsia-500/15 p-5 text-left shadow-sm transition-all hover:scale-[1.01] hover:shadow-md hover:border-fuchsia-500/40"
                 >
                   <div className="flex items-start gap-4">

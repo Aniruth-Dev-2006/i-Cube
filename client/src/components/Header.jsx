@@ -1,13 +1,26 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { LogOut, User, Edit } from 'lucide-react';
 import { authService } from '../services/authService';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import EditProfile from './EditProfile';
 
-const Header = () => {
+const Header = ({ user }) => {
   const navigate = useNavigate();
-  const [currentUser, setCurrentUser] = useState(authService.getCurrentUser());
+  const [currentUser, setCurrentUser] = useState(user || null);
   const [showEditProfile, setShowEditProfile] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      setCurrentUser(user);
+    } else {
+      // Try to fetch if not provided
+      authService.getCurrentUser().then(res => {
+        if (res.user) setCurrentUser(res.user);
+      }).catch(() => {
+        setCurrentUser(null);
+      });
+    }
+  }, [user]);
 
   const handleLogout = () => {
     authService.logout();
@@ -51,30 +64,41 @@ const Header = () => {
           </Link>
           
           <div className="relative group">
-            <button className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary transition-colors hover:bg-primary/20">
-              <User className="h-5 w-5" />
-            </button>
-            
-            <div className="absolute right-0 top-full mt-2 w-48 origin-top-right scale-0 rounded-lg border border-border bg-background/95 shadow-lg backdrop-blur-sm transition-transform group-hover:scale-100">
-              <div className="px-4 py-3 border-b border-border">
-                <p className="text-sm font-medium text-foreground">{currentUser?.name || 'User'}</p>
-                <p className="text-xs text-muted-foreground">{currentUser?.email || ''}</p>
-              </div>
+            {currentUser ? (
+              <>
+                <button className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary transition-colors hover:bg-primary/20">
+                  <User className="h-5 w-5" />
+                </button>
+                
+                <div className="absolute right-0 top-full mt-2 w-48 origin-top-right scale-0 rounded-lg border border-border bg-background/95 shadow-lg backdrop-blur-sm transition-transform group-hover:scale-100">
+                  <div className="px-4 py-3 border-b border-border">
+                    <p className="text-sm font-medium text-foreground">{currentUser?.name || 'User'}</p>
+                    <p className="text-xs text-muted-foreground">{currentUser?.email || ''}</p>
+                  </div>
+                  <button
+                    onClick={() => setShowEditProfile(true)}
+                    className="flex w-full items-center gap-2 px-4 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                  >
+                    <Edit className="h-4 w-4" />
+                    Edit Profile
+                  </button>
+                  <button
+                    onClick={handleLogout}
+                    className="flex w-full items-center gap-2 px-4 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Logout
+                  </button>
+                </div>
+              </>
+            ) : (
               <button
-                onClick={() => setShowEditProfile(true)}
-                className="flex w-full items-center gap-2 px-4 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                onClick={() => navigate('/login')}
+                className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
               >
-                <Edit className="h-4 w-4" />
-                Edit Profile
+                Sign In
               </button>
-              <button
-                onClick={handleLogout}
-                className="flex w-full items-center gap-2 px-4 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-              >
-                <LogOut className="h-4 w-4" />
-                Logout
-              </button>
-            </div>
+            )}
           </div>
         </nav>
       </div>
