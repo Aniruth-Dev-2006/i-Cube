@@ -3,50 +3,45 @@ const router = express.Router();
 const passport = require('passport');
 const User = require('../models/User');
 const upload = require('../config/multer');
+const jwt = require('jsonwebtoken');
+const { protect } = require('../middleware/auth');
+
+// Generate JWT function
+const generateToken = (id) => {
+  return jwt.sign({ id }, process.env.JWT_SECRET || 'fallback_secret', {
+    expiresIn: '30d',
+  });
+};
 
 // Signup route
 router.post('/signup', async (req, res) => {
   try {
     const { email, password, name } = req.body;
     
-    // Validate input
     if (!email || !password || !name) {
       return res.status(400).json({ message: 'All fields are required' });
     }
     
-    // Check if user exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ message: 'User already exists' });
     }
     
-    // Create new user
     const user = await User.create({
       email,
       password,
       name
     });
     
-    // Login user after signup
-    req.login(user, (err) => {
-      if (err) {
-        return res.status(500).json({ message: 'Error logging in after signup' });
+    res.status(201).json({
+      message: 'User created successfully',
+      token: generateToken(user._id),
+      user: {
+        id: user._id,
+        email: user.email,
+        name: user.name,
+        picture: user.picture
       }
-      
-      req.session.save((err) => {
-        if (err) {
-          return res.status(500).json({ message: 'Session error' });
-        }
-        res.status(201).json({
-          message: 'User created successfully',
-          user: {
-            id: user._id,
-            email: user.email,
-            name: user.name,
-            picture: user.picture
-          }
-        });
-      });
     });
   } catch (error) {
     console.error('Signup error:', error);
@@ -55,37 +50,34 @@ router.post('/signup', async (req, res) => {
 });
 
 // Login route
-router.post('/login', (req, res, next) => {
-  passport.authenticate('local', (err, user, info) => {
-    if (err) {
-      return res.status(500).json({ message: 'Server error' });
-    }
+router.post('/login', async (req, res, next) => {
+  try {
+    const { email, password } = req.body;
     
+    const user = await User.findOne({ email });
     if (!user) {
-      return res.status(401).json({ message: info.message || 'Invalid credentials' });
+      return res.status(401).json({ message: 'Invalid credentials' });
     }
     
-    req.login(user, (err) => {
-      if (err) {
-        return res.status(500).json({ message: 'Error logging in' });
+    const isMatch = await user.comparePassword(password);
+    if (!isMatch) {
+      return res.status(401).json({ message: 'Invalid credentials' });
+    }
+    
+    res.json({
+      message: 'Login successful',
+      token: generateToken(user._id),
+      user: {
+        id: user._id,
+        email: user.email,
+        name: user.name,
+        picture: user.picture
       }
-      
-      req.session.save((err) => {
-        if (err) {
-          return res.status(500).json({ message: 'Session error' });
-        }
-        res.json({
-          message: 'Login successful',
-          user: {
-            id: user._id,
-            email: user.email,
-            name: user.name,
-            picture: user.picture
-          }
-        });
-      });
     });
-  })(req, res, next);
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
 });
 
 // Google OAuth routes
@@ -94,50 +86,40 @@ router.get('/google',
 );
 
 router.get('/google/callback',
-  passport.authenticate('google', { failureRedirect: '/login' }),
+  passport.authenticate('google', { failureRedirect: '/login', session: false }),
   (req, res) => {
-    // Successful authentication, redirect to client
-    res.redirect(`${process.env.CLIENT_URL}/chat`);
+    // Generate JWT
+    const token = generateToken(req.user._id);
+    
+    // Redirect with token
+    res.redirect(`${process.env.CLIENT_URL}/chat?token=${token}`);
   }
 );
 
 // Logout route
 router.post('/logout', (req, res) => {
-  req.logout((err) => {
-    if (err) {
-      return res.status(500).json({ message: 'Error logging out' });
-    }
-    res.json({ message: 'Logout successful' });
-  });
+  // Client handles token deletion, just send success
+  res.json({ message: 'Logout successful' });
 });
 
 // Get current user route
-router.get('/user', (req, res) => {
-  if (req.isAuthenticated()) {
-    res.json({
-      user: {
-        id: req.user._id,
-        email: req.user.email,
-        name: req.user.name,
-        picture: req.user.picture
-      }
-    });
-  } else {
-    res.status(401).json({ message: 'Not authenticated' });
-  }
+router.get('/user', protect, (req, res) => {
+  res.json({
+    user: {
+      id: req.user._id,
+      email: req.user.email,
+      name: req.user.name,
+      picture: req.user.picture
+    }
+  });
 });
 
 // Update profile route
-router.put('/profile', upload.single('picture'), async (req, res) => {
+router.put('/profile', protect, upload.single('picture'), async (req, res) => {
   try {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ message: 'Not authenticated' });
-    }
-
     const { name, email } = req.body;
     const userId = req.user._id;
 
-    // Check if email is being changed and if it's already taken
     if (email !== req.user.email) {
       const existingUser = await User.findOne({ email });
       if (existingUser) {
@@ -145,10 +127,8 @@ router.put('/profile', upload.single('picture'), async (req, res) => {
       }
     }
 
-    // Update user fields
     const updateData = { name, email };
     
-    // If file was uploaded, update picture path
     if (req.file) {
       updateData.picture = `/uploads/profiles/${req.file.filename}`;
     }
